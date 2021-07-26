@@ -196,29 +196,34 @@ impl ProxyChannel {
     }
 
     fn handle_ws_stream(&mut self) -> Result<()> {
+        println!("handle_ws_stream");
         if self.frame_encoder.is_idle() {
             if let Some(data) = self.pending_pong.take() {
                 debug!(self.logger, "Sends Ping frame: {:?}", data);
                 track!(self.frame_encoder.start_encoding(Frame::Pong { data }))?;
             }
         }
+        println!("handle_ws_stream frame_encoder.is_idle");
         if self.frame_encoder.is_idle() {
             if let Some(frame) = self.pending_close.take() {
                 track!(self.frame_encoder.start_encoding(frame))?;
             }
         }
 
+        println!("handle_ws_stream encode_to_write_buf");
         track!(self.frame_encoder.encode_to_write_buf(&mut self.ws_wbuf))?;
         if self.frame_encoder.is_idle() && self.closing.is_client_closed() {
             self.closing = Closing::Closed;
         }
 
+        println!("handle_ws_stream decode_from_read_buf");
         track!(self.frame_decoder.decode_from_read_buf(&mut self.ws_rbuf))?;
         if self.frame_decoder.is_idle() {
             let frame = track!(self.frame_decoder.finish_decoding())?;
             debug!(self.logger, "Received frame: {:?}", frame);
             track!(self.handle_frame(frame))?;
         }
+        println!("handle_ws_stream ok");
         Ok(())
     }
 

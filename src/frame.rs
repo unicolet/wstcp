@@ -265,6 +265,8 @@ impl Decode for FramePayloadDecoder {
     type Item = Frame;
 
     fn decode(&mut self, buf: &[u8], eos: Eos) -> bytecodec::Result<usize> {
+        println!("decode buf[{}]={:?}", buf.len(), buf);
+        println!("decode self.buf={:?}", &self.buf[self.buf_start .. self.buf_end]);
         if let Some(ref header) = self.header {
             let size =
                 cmp::min(header.payload_len - self.payload_offset, buf.len() as u64) as usize;
@@ -282,13 +284,16 @@ impl Decode for FramePayloadDecoder {
             if self.payload_offset != header.payload_len {
                 track_assert!(!eos.is_reached(), bytecodec::ErrorKind::UnexpectedEos);
             }
+            println!("returning {}", size);
             Ok(size)
         } else {
+            println!("returning zero {}", 0);
             Ok(0)
         }
     }
 
     fn finish_decoding(&mut self) -> bytecodec::Result<Self::Item> {
+        println!("finish_decoding self.buf={:?}", &self.buf[self.buf_start .. self.buf_end]);
         track_assert!(self.is_idle(), bytecodec::ErrorKind::IncompleteDecoding);
         let header =
             track_assert_some!(self.header.take(), bytecodec::ErrorKind::InconsistentState);
@@ -373,6 +378,7 @@ impl FrameDecoder {
             return Ok(StreamState::Normal);
         }
 
+        println!("write_decoded_data self.buf[{}]={:?}", self.payload.buf_end-self.payload.buf_start, &self.payload.buf[self.payload.buf_start..self.payload.buf_end]);
         let buf = &self.payload.buf[self.payload.buf_start..self.payload.buf_end];
         match writer.write(buf) {
             Err(e) => {
@@ -384,6 +390,7 @@ impl FrameDecoder {
             }
             Ok(0) => Ok(StreamState::Eos),
             Ok(size) => {
+                println!("wrote only {}", size);
                 self.payload.buf_start += size;
                 if self.payload.buf_start == self.payload.buf_end {
                     self.payload.buf_start = 0;
